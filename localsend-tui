@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+cli="$project_dir/bin/localsend-cli"
+
+if [[ ! -x "$cli" ]]; then
+    printf 'LocalSend TUI is not built yet. Run: %s/build.sh\n' "$project_dir" >&2
+    exit 1
+fi
+
+exec "$cli" "$@"

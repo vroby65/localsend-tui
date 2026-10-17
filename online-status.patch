@@ -1,0 +1,156 @@
+diff --git a/cli/src/app/devices.rs b/cli/src/app/devices.rs
+index 3ca9e9f..96e4971 100644
+--- a/cli/src/app/devices.rs
++++ b/cli/src/app/devices.rs
+@@ -8,7 +8,7 @@ use crate::sanitize;
+ use crate::storage::PairedChannel;
+ use crate::ui::Category;
+ use crossterm::event::KeyEvent;
+-use localsend::discovery::StatefulDevice;
++use localsend::discovery::{ChannelStatus, StatefulDevice};
+ 
+ impl App {
+     pub(super) fn open_device_list(&mut self) {
+@@ -167,6 +167,7 @@ fn channel_hosts(stored: &StatefulDevice) -> Vec<String> {
+     stored
+         .get_ranked_channels()
+         .into_iter()
++        .filter(|channel| stored.channels.get(*channel) == Some(&ChannelStatus::Available))
+         .filter_map(|channel| channel.http())
+         .map(|http| http.host.clone())
+         .collect()
+diff --git a/cli/src/app/mod.rs b/cli/src/app/mod.rs
+index 6cd0971..cee3a5f 100644
+--- a/cli/src/app/mod.rs
++++ b/cli/src/app/mod.rs
+@@ -17,8 +17,8 @@ use crate::{Args, Command};
+ use crossterm::event::{Event, KeyEvent, KeyEventKind};
+ use keys::{Intent, KeyDecoder};
+ use localsend::discovery::{
+-    DEFAULT_DISCOVERY_TIMEOUT, DeviceIdentity, DiscoveryConfig, DiscoveryEvent, DiscoveryHandle,
+-    HttpChannel,
++    ChannelStatus, DEFAULT_DISCOVERY_TIMEOUT, DeviceIdentity, DiscoveryConfig, DiscoveryEvent,
++    DiscoveryHandle, HttpChannel,
+ };
+ use localsend::http::server::v2::ServerEventV2;
+ use localsend::http::server::web::{WebConfig, WebDownloadEvent};
+@@ -214,6 +214,65 @@ fn spawn_staged_discovery(
+     });
+ }
+ 
++/// Re-checks known devices so the device list reflects when they go offline.
++fn spawn_device_monitor(discovery: Arc<DiscoveryHandle>, events_tx: mpsc::Sender<AppEvent>) {
++    tokio::spawn(async move {
++        let mut interval = tokio::time::interval(Duration::from_secs(5));
++        let mut previous = std::collections::HashMap::<String, bool>::new();
++        interval.tick().await;
++        loop {
++            interval.tick().await;
++            let channels: Vec<HttpChannel> = discovery
++                .devices()
++                .into_iter()
++                .flat_map(|device| device.channels.into_keys())
++                .filter_map(|channel| channel.http().cloned())
++                .collect();
++            if !channels.is_empty() {
++                let _ = discovery.discover_known_http_channels(channels).await;
++            }
++            for device in discovery.devices() {
++                let online = device
++                    .channels
++                    .values()
++                    .any(|status| *status == ChannelStatus::Available);
++                if let Some(was_online) = previous.insert(device.device.fingerprint, online)
++                    && was_online != online
++                {
++                    let state = if online { "online" } else { "offline" };
++                    let _ = events_tx
++                        .send(AppEvent::Log {
++                            category: Category::Discovery,
++                            text: format!(
++                                "{} is {state}",
++                                crate::sanitize::single_line(&device.device.alias)
++                            ),
++                        })
++                        .await;
++                }
++            }
++        }
++    });
++}
++
++/// Finds devices that start LocalSend after this client has started, even on
++/// networks where multicast announcements do not reach this machine.
++fn spawn_subnet_scanner(discovery: Arc<DiscoveryHandle>, port: u16) {
++    let interface_ips = local_interface_addresses(&InterfaceFilter::default()).unwrap_or_default();
++    tokio::spawn(async move {
++        let mut interval = tokio::time::interval(Duration::from_secs(15));
++        interval.tick().await;
++        loop {
++            interval.tick().await;
++            for ip in &interface_ips {
++                let _ = discovery
++                    .scan_subnet(*ip, port, ProtocolType::Https)
++                    .await;
++            }
++        }
++    });
++}
++
+ /// Stops the server and the discovery, waiting briefly so the ports are
+ /// released cleanly.
+ async fn stop_network(
+@@ -308,6 +367,8 @@ async fn run_interactive(
+         storage.paired.known_http_channels(),
+         identity.port,
+     );
++    spawn_device_monitor(discovery.clone(), events_tx.clone());
++    spawn_subnet_scanner(discovery.clone(), identity.port);
+ 
+     crossterm::terminal::enable_raw_mode()?;
+ 
+diff --git a/packages/core/src/discovery/mod.rs b/packages/core/src/discovery/mod.rs
+index 93b669f..c242d75 100644
+--- a/packages/core/src/discovery/mod.rs
++++ b/packages/core/src/discovery/mod.rs
+@@ -161,9 +161,17 @@ impl DiscoveryState {
+         port: u16,
+         protocol: ProtocolType,
+     ) -> Result<Option<StatefulDevice>, ClientError> {
+-        let response = client
+-            .register(protocol, host, port, self.register_dto())
+-            .await?;
++        let response = match client.register(protocol, host, port, self.register_dto()).await {
++            Ok(response) => response,
++            Err(err) => {
++                self.store.mark_not_reachable(&DeviceChannel::Http(HttpChannel {
++                    host: host.to_string(),
++                    port,
++                    protocol,
++                }));
++                return Err(err);
++            }
++        };
+ 
+         // In HTTPS mode the certificate is the peer's identity; the
+         // fingerprint claimed in the body only counts without encryption.
+diff --git a/packages/core/src/discovery/store.rs b/packages/core/src/discovery/store.rs
+index 364e4e3..8a8fad2 100644
+--- a/packages/core/src/discovery/store.rs
++++ b/packages/core/src/discovery/store.rs
+@@ -256,6 +256,15 @@ impl DeviceStore {
+             .find(|known| known.device.fingerprint == fingerprint)
+             .cloned()
+     }
++
++    pub(super) fn mark_not_reachable(&self, channel: &DeviceChannel) {
++        let mut devices = self.devices.lock().unwrap();
++        for device in devices.iter_mut() {
++            if let Some(status) = device.channels.get_mut(channel) {
++                *status = ChannelStatus::NotReachable;
++            }
++        }
++    }
+ }
+ 
+ #[cfg(test)]
