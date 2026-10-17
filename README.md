@@ -5,6 +5,27 @@ from the official `localsend-cli`. This project pins an upstream revision and
 adds periodic device discovery so devices that come online later are found and
 offline devices disappear from the list.
 
+## Download and run
+
+Download the latest build for your Linux architecture, extract it, and start
+the TUI:
+
+```bash
+case "$(uname -m)" in
+  x86_64)  arch=x86_64 ;;
+  aarch64|arm64) arch=aarch64 ;;
+  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+curl -fL "https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-${arch}.tar.gz" -o localsend-tui.tar.gz
+tar -xzf localsend-tui.tar.gz
+./localsend-tui
+```
+
+Direct downloads: [x86_64 Linux](https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-x86_64.tar.gz) · [ARM64 Linux](https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-aarch64.tar.gz).
+The ARM64 build requires a 64-bit operating system.
+
+See [all releases](https://github.com/vroby65/localsend-tui/releases).
+
 ## Requirements
 
 - Git

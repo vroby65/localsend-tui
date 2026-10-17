@@ -1,0 +1,61 @@
+name: Build and publish release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Linux ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            arch: x86_64
+          - runner: ubuntu-22.04-arm
+            arch: aarch64
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build LocalSend TUI
+        run: ./build.sh
+
+      - name: Package binary and license
+        run: |
+          mkdir -p release
+          install -m 0755 bin/localsend-cli release/localsend-tui
+          install -m 0644 LICENSE README.md release/
+          tar -C release -czf "localsend-tui-linux-${{ matrix.arch }}.tar.gz" .
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: localsend-tui-linux-${{ matrix.arch }}
+          path: localsend-tui-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: localsend-tui-linux-*
+          path: release
+          merge-multiple: true
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          name: LocalSend TUI ${{ github.ref_name }}
+          generate_release_notes: true
+          files: release/*.tar.gz
