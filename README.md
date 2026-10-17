@@ -7,22 +7,35 @@ offline devices disappear from the list.
 
 ## Download and run
 
-Download the latest build for your Linux architecture, extract it, and start
-the TUI:
+### Quick launch (copy and paste)
+
+For x86_64 Linux, paste this into a terminal to download, install, and start the
+TUI:
 
 ```bash
-case "$(uname -m)" in
-  x86_64)  arch=x86_64 ;;
-  aarch64|arm64) arch=aarch64 ;;
-  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-esac
-curl -fL "https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-${arch}.tar.gz" -o localsend-tui.tar.gz
-tar -xzf localsend-tui.tar.gz
-./localsend-tui
+mkdir -p "$HOME/.local/opt/localsend-tui" && \
+curl -fL "https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-x86_64.tar.gz" -o "$HOME/.local/opt/localsend-tui/release.tar.gz" && \
+tar -xzf "$HOME/.local/opt/localsend-tui/release.tar.gz" -C "$HOME/.local/opt/localsend-tui" && \
+"$HOME/.local/opt/localsend-tui/localsend-tui"
+```
+
+For ARM64 Linux, use this command instead. It requires a 64-bit operating
+system:
+
+```bash
+mkdir -p "$HOME/.local/opt/localsend-tui" && \
+curl -fL "https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-aarch64.tar.gz" -o "$HOME/.local/opt/localsend-tui/release.tar.gz" && \
+tar -xzf "$HOME/.local/opt/localsend-tui/release.tar.gz" -C "$HOME/.local/opt/localsend-tui" && \
+"$HOME/.local/opt/localsend-tui/localsend-tui"
+```
+
+After the first download, launch it any time with:
+
+```bash
+~/.local/opt/localsend-tui/localsend-tui
 ```
 
 Direct downloads: [x86_64 Linux](https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-x86_64.tar.gz) · [ARM64 Linux](https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-aarch64.tar.gz).
-The ARM64 build requires a 64-bit operating system.
 
 See [all releases](https://github.com/vroby65/localsend-tui/releases).
 
