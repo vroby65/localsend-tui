@@ -9,24 +9,12 @@ offline devices disappear from the list.
 
 ### Quick launch (copy and paste)
 
-For x86_64 Linux, paste this into a terminal to download, install, and start the
-TUI:
+On x86_64 or ARM64 Linux, paste this into a terminal to detect the architecture,
+download the latest release, install it under `~/.local/opt/localsend-tui`, and
+start the TUI:
 
 ```bash
-mkdir -p "$HOME/.local/opt/localsend-tui" && \
-curl -fL "https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-x86_64.tar.gz" -o "$HOME/.local/opt/localsend-tui/release.tar.gz" && \
-tar -xzf "$HOME/.local/opt/localsend-tui/release.tar.gz" -C "$HOME/.local/opt/localsend-tui" && \
-"$HOME/.local/opt/localsend-tui/localsend-tui"
-```
-
-For ARM64 Linux, use this command instead. It requires a 64-bit operating
-system:
-
-```bash
-mkdir -p "$HOME/.local/opt/localsend-tui" && \
-curl -fL "https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-aarch64.tar.gz" -o "$HOME/.local/opt/localsend-tui/release.tar.gz" && \
-tar -xzf "$HOME/.local/opt/localsend-tui/release.tar.gz" -C "$HOME/.local/opt/localsend-tui" && \
-"$HOME/.local/opt/localsend-tui/localsend-tui"
+set -o pipefail && curl -fsSL https://raw.githubusercontent.com/vroby65/localsend-tui/main/install.sh | bash
 ```
 
 After the first download, launch it any time with:
@@ -36,6 +24,7 @@ After the first download, launch it any time with:
 ```
 
 Direct downloads: [x86_64 Linux](https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-x86_64.tar.gz) · [ARM64 Linux](https://github.com/vroby65/localsend-tui/releases/latest/download/localsend-tui-linux-aarch64.tar.gz).
+The ARM64 build requires a 64-bit operating system.
 
 See [all releases](https://github.com/vroby65/localsend-tui/releases).
 
